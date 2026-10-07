@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="kk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TryOn: 3D манекен</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#e9edf2;--panel:#fff;--ink:#1c2530;--mute:#5d6b7a;--line:#d5dbe2;--s1:#f4f6f9;--s2:#cfd8e3}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f151c;--panel:#17202a;--ink:#eaf0f6;--mute:#93a1b0;--line:#2b3744;--s1:#2a3644;--s2:#141b23}}
+:root[data-theme="dark"]{--bg:#0f151c;--panel:#17202a;--ink:#eaf0f6;--mute:#93a1b0;--line:#2b3744;--s1:#2a3644;--s2:#141b23}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"PT Sans",system-ui,sans-serif;line-height:1.4}
+.app{max-width:1180px;margin:0 auto;padding:12px;display:grid;grid-template-columns:1fr 380px;gap:12px}
+header{grid-column:1/-1}h1{font-size:21px;margin:0}.sub{margin:2px 0 0;color:var(--mute);font-size:14px}
+#stage{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;height:82vh;min-height:480px;max-height:780px;background:radial-gradient(ellipse at 50% 35%,var(--s1),var(--s2))}
+#stage canvas{display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab}
+.bar{position:absolute;left:10px;right:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.bar button[aria-pressed="true"],.chips button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+#legend{position:absolute;left:10px;right:10px;bottom:10px;font-size:12px;color:var(--mute);display:none}
+#legend i{display:block;height:8px;border-radius:4px;margin:3px 0;background:linear-gradient(90deg,#e63946,#f5c842 22%,#34b374 40%,#34b374 60%,#38b8cc 72%,#4073eb)}
+#legend span{display:flex;justify-content:space-between}
+#hint{position:absolute;right:12px;bottom:10px;font-size:12px;color:var(--mute)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;max-height:82vh;overflow:auto}
+h2{font-size:14px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}h2:first-child{margin-top:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
+button,input,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+input[type=number]{cursor:text;width:100%;padding:5px 8px}
+button:focus-visible,input:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+.sw{width:24px;height:24px;padding:0;border-radius:50%}.sw[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{font-size:13px;color:var(--mute);display:block}
+.row{display:flex;gap:8px;align-items:center;font-size:14px;padding:3px 0}.dot{width:12px;height:12px;border-radius:50%;flex:none}.row span{color:var(--mute)}
+#rec{font-weight:700;margin-top:6px}.note{font-size:12.5px;color:var(--mute);margin-top:8px}
+@media (max-width:900px){.app{grid-template-columns:1fr}#stage{height:64vh;min-height:400px}.panel{max-height:none}}
+</style></head><body>
+<div class="app">
+<header><h1>TryOn: 3D манекен</h1><p class="sub">Бойы мен салмағыңды енгіз, киімді таңдап, манекенді 360° айналдырып көр.</p></header>
+<div id="stage">
+ <div class="bar"><button data-v="0">Алдынан</button><button data-v="1.5708">Бүйірінен</button><button data-v="3.1416">Артынан</button><button id="spin" aria-pressed="true">Автоайналу</button><button id="zin" aria-label="Жақындату">+</button><button id="zout" aria-label="Алыстату">−</button></div>
+ <div id="legend"><i></i><span><b>тар</b><b>дәл отырады</b><b>бос</b></span></div>
+ <div id="hint">Тартып айналдыр · дөңгелекпен жақындат</div>
+</div>
+<div class="panel">
+<h2>Дене параметрлері</h2>
+<div class="grid2"><div><label for="h">Бойы, см</label><input id="h" type="number" min="150" max="200" value="175"></div><div><label for="w">Салмағы, кг</label><input id="w" type="number" min="40" max="140" value="70"></div></div>
+<div class="chips" style="margin-top:6px" id="sex"></div>
+<div class="chips"><label style="display:flex;gap:6px;align-items:center;color:var(--ink)"><input id="man" type="checkbox" style="width:auto"> Өлшемдерді өзім енгіземін</label></div>
+<div class="grid"><div><label for="c">Кеуде</label><input id="c" type="number" min="70" max="150" value="99"></div><div><label for="wa">Бел</label><input id="wa" type="number" min="55" max="140" value="84"></div><div><label for="hi">Жамбас</label><input id="hi" type="number" min="75" max="150" value="100"></div></div>
+<div class="note" id="est"></div>
+<h2>Манекен түсі</h2><div class="chips" id="fin"></div>
+<h2>Топ</h2><div class="chips" id="tT"></div><div class="chips" id="tS"></div><div class="chips" id="tC"></div><div class="chips" id="tP"></div><div class="chips" id="tR"></div>
+<input id="upl" type="file" accept="image/*" hidden>
+<h2>Төменгі киім</h2><div class="chips" id="bT"></div><div class="chips" id="bS"></div><div class="chips" id="bC"></div><div class="chips" id="bP"></div>
+<h2>Аяқ киім</h2><div class="chips" id="sT"></div><div class="chips" id="sC"></div>
+<h2>Отыруы</h2><div class="chips"><button id="fit" aria-pressed="false">Отыруын түспен көрсету</button></div>
+<div id="rows"></div><div id="rec"></div>
+<div class="chips" style="margin-top:12px"><button id="rnd">Кездейсоқ образ</button><button id="rst">Бастапқы күй</button></div>
+<div class="note">Өлшемдер бойы мен салмағынан шамамен бағаланады (нақтылау үшін «өзім енгіземін» таңда). Киім өлшемдері демо кесте бойынша. Шаблон негізгі пішінді, түсті және принтті көрсетеді; қалта, қыртыс және матаның қозғалысы жеңілдетілген.</div>
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(root){
+const V={add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],mul:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+ cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],len:a=>Math.hypot(a[0],a[1],a[2]),norm:a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]}};
+const lerp=(a,b,t)=>a+(b-a)*t,clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),sstep=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
+function lin(xs,ys,x){if(x<=xs[0])return ys[0];for(let i=1;i<xs.length;i++)if(x<=xs[i])return lerp(ys[i-1],ys[i],(x-xs[i-1])/(xs[i]-xs[i-1]));return ys[ys.length-1]}
+const cr=(p0,p1,p2,p3,t)=>{const t2=t*t,t3=t2*t;return .5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t2+(-p0+3*p1-3*p2+p3)*t3)};
+function spl(a,s){const n=a.length;if(n===1)return a[0];const i=clamp(Math.floor(s),0,n-2),t=s-i,g=k=>a[clamp(k,0,n-1)];return cr(g(i-1),g(i),g(i+1),g(i+2),t)}
+const F=r=>Math.PI*(3*(1+r)-Math.sqrt((3+r)*(1+3*r)));
+const ell=(P,r)=>{const a=P/F(r);return[a,a*r]};
+
+// loft: rings along spline through ctrl, each ring an ellipse (rx lateral, rz depth) in plane normal to the path
+function loft(c,SEG,ref){
+ const N=c.p.length,pos=[],uv=[],idx=[],dv=[];
+ for(let i=0;i<N;i++){
+  const a=c.p[Math.max(0,i-1)],b=c.p[Math.min(N-1,i+1)],t=V.norm(V.sub(b,a));
+  let f=V.sub(ref,V.mul(t,V.dot(ref,t)));if(V.len(f)<1e-6)f=[0,0,1];f=V.norm(f);const u=V.cross(t,f);
+  const rx=Math.max(1e-4,c.rx[i]),rz=Math.max(1e-4,c.rz[i]),zc=c.zc?c.zc[i]:0;
+  for(let j=0;j<=SEG;j++){const th=j/SEG*2*Math.PI,s=Math.sin(th),co=Math.cos(th);
+   const q=V.add(c.p[i],V.add(V.mul(u,rx*s),V.mul(f,zc-rz*co)));pos.push(q[0],q[1],q[2]);uv.push(j/SEG,i/(N-1));dv.push(c.d?c.d[i]:0)}}
+ for(let i=0;i<N-1;i++)for(let j=0;j<SEG;j++){const a=i*(SEG+1)+j,b=a+SEG+1;idx.push(a,b,a+1,b,b+1,a+1)}
+ return{pos,uv,idx,d:dv,N,SEG};
+}
+function estimate(Hc,W,sex){const b=W/Math.pow(Hc/100,2),k=1+(Hc-175)*.0012;
+ const M={w:38+2*b,c:52+2.05*b,h:60+1.8*b},Fm={w:28+2*b,c:50+1.75*b,h:62+1.85*b};
+ const o=sex==='m'?M:sex==='f'?Fm:{w:(M.w+Fm.w)/2,c:(M.c+Fm.c)/2,h:(M.h+Fm.h)/2};
+ return{chest:o.c*k,waist:o.w*k,hip:o.h*k,bmi:b}}
+function torsoSecs(P){
+ const H=P.H,sx=P.sex,sw=(sx==='f'?.104:sx==='m'?.116:.11)*H,C=P.chest/100,W=P.waist/100,Hp=P.hip/100;
+ const mk=(y,Pm,r,zc=0)=>{const[a,b]=ell(Pm,r);return{y,a,b,zc,P:Pm}};
+ const rc=sx==='f'?.72:.68,[a72,b72]=ell(C,rc);
+ const sh=(y,a,b,zc=0)=>({y,a,b,zc,P:a*F(b/a)});
+ return[mk(.425,.62*Hp,.5),mk(.445,.8*Hp,.58),mk(.47,.9*Hp,.62),mk(.50,.97*Hp,.66,-.002*H),mk(.53,Hp,.70,-.003*H),mk(.575,lerp(W,Hp,.4),.70),mk(.62,W,.70),mk(.67,lerp(W,C,.65),.70),mk(.72,C,rc),
+  sh(.765,lerp(a72,sw,.55),b72*.88),sh(.79,sw*.95,b72*.72),sh(.81,sw*.78,b72*.55),sh(.826,sw*.50,.052*H),sh(.84,sw*.28,.044*H),sh(.858,.037*H,.037*H),sh(.895,.033*H,.034*H,.004*H)];
+}
+function secAt(S,y){const n=S.length;let i=0;while(i<n-2&&y>S[i+1].y)i++;const t=clamp((y-S[i].y)/(S[i+1].y-S[i].y),0,1),g=(k,key)=>S[clamp(k,0,n-1)][key],o={y};
+ for(const key of['a','b','zc','P'])o[key]=cr(g(i-1,key),g(i,key),g(i+1,key),g(i+2,key),t);return o}
+function along(poly,f){const L=[0];for(let i=1;i<poly.length;i++)L.push(L[i-1]+V.len(V.sub(poly[i],poly[i-1])));let d=f*L[L.length-1];
+ for(let i=1;i<poly.length;i++)if(d<=L[i]||i===poly.length-1)return V.add(poly[i-1],V.mul(V.sub(poly[i],poly[i-1]),clamp((d-L[i-1])/(L[i]-L[i-1]),0,1)))}
+const ARM={f:[0,.03,.059,.14,.25,.466,.62,.785,.84,.92,.975,1],rx:[.014,.029,.0315,.0325,.0300,.0235,.0255,.0155,.0215,.0220,.0120,.003],rz:[.014,.029,.0310,.0320,.0295,.0230,.0245,.0125,.0105,.0085,.0060,.003]};
+const LEG={f:[0,.1,.3,.5,.65,.85,.95,1],rx:[.0520,.0550,.0450,.0345,.0360,.0245,.0195,.0185],rz:[.0550,.0580,.0480,.0355,.0355,.0240,.0190,.0180]};
+function limb(poly,tab,H,f0,f1,M,sc){const c={p:[],rx:[],rz:[],fs:[]};for(let i=0;i<M;i++){const f=lerp(f0,f1,i/(M-1)),k=sc?sc(f):1;
+ c.fs.push(f);c.p.push(along(poly,f));c.rx.push(lin(tab.f,tab.rx,f)*H*k);c.rz.push(lin(tab.f,tab.rz,f)*H*k)}return c}
+const SIZES={tee:{S:{c:98,h:98},M:{c:106,h:106},L:{c:114,h:114},XL:{c:122,h:122}},sweater:{S:{c:102,h:96},M:{c:110,h:104},L:{c:118,h:112},XL:{c:126,h:120}},
+ shorts:{S:{w:82,h:98,t:58},M:{w:90,h:106,t:62},L:{w:98,h:114,t:67},XL:{w:106,h:122,t:72}},pants:{S:{w:82,h:98,t:59},M:{w:90,h:106,t:64},L:{w:98,h:114,t:69},XL:{w:106,h:122,t:74}}};
+function colorFor(d){const st=[[0,[.90,.22,.25]],[2,[.96,.78,.22]],[4,[.20,.70,.45]],[8,[.20,.70,.45]],[10,[.20,.72,.80]],[14,[.25,.45,.92]]];
+ if(d<=st[0][0])return st[0][1];for(let i=1;i<st.length;i++)if(d<=st[i][0]){const t=(d-st[i-1][0])/(st[i][0]-st[i-1][0]);return st[i-1][1].map((v,k)=>lerp(v,st[i][1][k],t))}return st[st.length-1][1]}
+
+function build(p){
+ const est=estimate(p.H,p.W,p.sex),M=p.manual||est,H=p.H/100;
+ const P={H,sex:p.sex,chest:M.chest,waist:M.waist,hip:M.hip,bmi:est.bmi},S=torsoSecs(P),off=.0035*H;
+ const aS=clamp(Math.pow(est.bmi/22,.45),.85,1.35),lS=clamp(P.hip/100,.8,1.4),sw=(p.sex==='f'?.104:p.sex==='m'?.116:.11)*H;
+ const out=[],zones=[];let rec='—';const add=(id,loft,o)=>out.push(Object.assign({id,loft},o||{}));
+ const ys=(y0,y1,N)=>Array.from({length:N},(_,i)=>lerp(y0,y1,i/(N-1)));
+ function tl(y0,y1,N,kf,df){const c={p:[],rx:[],rz:[],zc:[],d:[]};ys(y0,y1,N).forEach(y=>{const s=secAt(S,y),k=kf?kf(y,s):1,o=kf?off:0;
+  c.p.push([0,y*H,0]);c.rx.push(s.a*k+o);c.rz.push(s.b*k+o);c.zc.push(s.zc);c.d.push(df?df(y):0)});return loft(c,56,[0,0,1])}
+ const armPoly=sd=>{const S0=[sd*sw*.78,.778*H,0],E=V.add(S0,V.mul(V.norm([Math.sin(.28)*sd,-Math.cos(.28),.03]),.186*H)),W=V.add(E,V.mul(V.norm([Math.sin(.17)*sd,-Math.cos(.17),.1]),.146*H)),T=V.add(W,V.mul(V.norm([Math.sin(.1)*sd,-Math.cos(.1),.12]),.098*H));return[V.add(S0,[-sd*.03*H,.008*H,0]),S0,E,W,T]};
+ const lx=secAt(S,.53).a*.52,legPoly=sd=>[[sd*lx,.5*H,0],[sd*lx*1.02,.285*H,.006*H],[sd*lx*.9,.045*H,-.004*H]];
+ // ---- body
+ add('torso',tl(.425,.895,52),{k:'body'});
+ const hy=[.872,.884,.9,.925,.945,.965,.985,1],hx=[.012,.034,.0475,.0525,.0535,.049,.032,.004],hz=[.014,.04,.054,.0605,.0615,.057,.037,.005];
+ add('head',loft({p:hy.map(y=>[0,y*H,0]),rx:hx.map(v=>v*H),rz:hz.map(v=>v*H),zc:hy.map((y,i)=>i<4?.004*H:.0015*H)},40,[0,0,1]),{k:'body'});
+ [-1,1].forEach(sd=>{
+  add('arm',loft(limb(armPoly(sd),ARM,H,0,1,26,()=>aS),32,[0,0,1]),{k:'body'});
+  add('leg',loft(limb(legPoly(sd),LEG,H,0,1,26,f=>lerp(lS,Math.pow(lS,.6),f)),32,[0,0,1]),{k:'body'});
+  const ax=sd*lx*.9,fx=[[.04,-.012],[.022,.025],[.012,.07],[.008,.115],[.006,.132]];
+  add('foot',loft({p:[[ax,.052*H,-.012*H],...fx.map(q=>[ax,q[0]*H,q[1]*H])],rx:[.0185,.0195,.0205,.0200,.0160,.004].map(v=>v*H),rz:[.0185,.0160,.0140,.0100,.0070,.003].map(v=>v*H)},28,[0,1,0]),{k:'body'});
+ });
+ // ---- top
+ const T=p.top&&p.top.type;
+ if(T){const z=SIZES[T][p.top.size],yh=T==='tee'?.515:.495,Pbh=secAt(S,yh).P*100,dC=z.c-P.chest,dH=z.h-Pbh,Pc=secAt(S,.72).P;
+  zones.push({n:'Кеуде',b:P.chest,g:z.c,d:dC},{n:'Етек',b:Pbh,g:z.h,d:dH});
+  const G=y=>lerp(z.h,z.c,(y-yh)/(.72-yh))/100,kf=(y,s)=>y<=.72?Math.max(1.012,G(y)/s.P):Math.max(1.012,lerp(z.c/100/Pc,1.02,sstep((y-.72)/.12))),df=y=>y<=.72?lerp(dH,dC,(y-yh)/(.72-yh)):dC;
+  add('top',tl(yh,.858,40,kf,df),{k:'top'});
+  const e0=clamp(.14+(dC-4)*.012,.02,.45),fE=T==='tee'?.27:.80;
+  [-1,1].forEach(sd=>{const e=f=>lerp(e0,T==='tee'?e0*.75:.05,clamp((f-.12)/(fE-.12),0,1));
+   const c=limb(armPoly(sd),ARM,H,0,fE,10,f=>aS*(1+e(f)));c.rx=c.rx.map(v=>v+off);c.rz=c.rz.map(v=>v+off);c.d=c.fs.map(()=>dC);add('sleeve',loft(c,32,[0,0,1]),{k:'sleeve'});
+   if(T==='sweater'){const c2=limb(armPoly(sd),ARM,H,fE-.05,fE,4,f=>aS*(1.045));c2.rx=c2.rx.map(v=>v+off*1.4);c2.rz=c2.rz.map(v=>v+off*1.4);c2.d=c2.fs.map(()=>dC);add('cuff',loft(c2,32,[0,0,1]),{k:'rib',d:dC})}});
+  if(T==='sweater'){const hb=tl(yh,yh+.035,6,kf,df);hb.pos=hb.pos.map((v,i)=>{return v});add('hem',tl(yh,yh+.035,6,(y,s)=>kf(y,s)*1.012,df),{k:'rib',d:dH});
+   const co={p:[],rx:[],rz:[],zc:[],d:[]};ys(.842,.872,5).forEach(y=>{const s=secAt(S,y);co.p.push([0,y*H,0]);co.rx.push(s.a*1.1+off*1.3);co.rz.push(s.b*1.1+off*1.3);co.zc.push(s.zc);co.d.push(dC)});add('collar',loft(co,40,[0,0,1]),{k:'rib',d:dC})}
+ }
+ // ---- bottom
+ const B=p.bot&&p.bot.type;
+ if(B){const z=SIZES[B][p.bot.size],th=lin(LEG.f,LEG.rx,.1)*H*lS,tz=lin(LEG.f,LEG.rz,.1)*H*lS,Pt=th*F(tz/th)*100;
+  const dW=z.w-P.waist,dHp=z.h-P.hip,dT=z.t-Pt;zones.push({n:'Бел',b:P.waist,g:z.w,d:dW},{n:'Жамбас',b:P.hip,g:z.h,d:dHp},{n:'Сан',b:Pt,g:z.t,d:dT});
+  const G=y=>lin([.43,.47,.53,.645],[z.h*.84,z.h*.94,z.h,z.w],y)/100,kf=(y,s)=>Math.max(1.012,G(y)/s.P),df=y=>lin([.43,.47,.53,.645],[dHp,dHp,dHp,dW],y);
+  add('hips',tl(.645,.43,38,kf,df),{k:'bot'});
+  const fE=B==='shorts'?.4:.965,kT=Math.max(1.015,z.t/Pt),rT=th*kT;
+  [-1,1].forEach(sd=>{const c=limb(legPoly(sd),LEG,H,0,fE,14,f=>lerp(lS,Math.pow(lS,.6),f));
+   c.rx=c.rx.map((v,i)=>{const t=c.fs[i]/fE,tg=rT*lerp(1,B==='shorts'?.9:.66,t);return Math.max(v*1.015+off,tg)});
+   c.rz=c.rz.map((v,i)=>{const t=c.fs[i]/fE,tg=rT*lerp(1,B==='shorts'?.9:.66,t)*(tz/th);return Math.max(v*1.015+off,tg)});c.d=c.fs.map(()=>dT);add('legg',loft(c,32,[0,0,1]),{k:'bot'})});
+  var recB=null;for(const sn of['S','M','L','XL']){const q=SIZES[B][sn];if(q.w-P.waist>=2&&q.h-P.hip>=2&&q.t-Pt>=1){recB=sn;break}}rec=recB||'—';
+ }
+ if(T){let r=null;const yh=T==='tee'?.515:.495,Pbh=secAt(S,yh).P*100;for(const sn of['S','M','L','XL']){const q=SIZES[T][sn];if(q.c-P.chest>=2&&q.h-Pbh>=2){r=sn;break}}
+  recTop=r||'—'}
+ var recTop;
+ // ---- shoes
+ if(p.shoes)[-1,1].forEach(sd=>{const ax=sd*lx*.9,fx=[[.034,.0],[.02,.04],[.012,.085],[.009,.125],[.007,.14]];
+  add('shoe',loft({p:fx.map(q=>[ax,q[0]*H,q[1]*H-.01*H]),rx:[.0245,.0245,.0225,.017,.004].map(v=>v*H),rz:[.0215,.0165,.0120,.0085,.003].map(v=>v*H)},28,[0,1,0]),{k:'shoe'});
+  add('shaft',loft({p:[[ax,.09*H,-.008*H],[ax,.065*H,-.01*H],[ax,.04*H,-.005*H]],rx:[.0225,.0235,.0245].map(v=>v*H),rz:[.0215,.0225,.0235].map(v=>v*H)},28,[0,0,1]),{k:'shoe'});
+  add('sole',loft({p:fx.map(q=>[ax,q[0]*H*.0+.004*H,q[1]*H-.01*H]),rx:[.0260,.0260,.0240,.0185,.006].map(v=>v*H),rz:[.0045,.0045,.0045,.0045,.003].map(v=>v*H)},28,[0,1,0]),{k:'sole'})});
+ return{meshes:out,zones,recTop:typeof recTop==='undefined'?null:recTop,recBot:typeof recB==='undefined'?null:recB,est,M,H};
+}
+const api={build,colorFor,SIZES,estimate};
+if(typeof module!=='undefined')module.exports=api;else root.TryOnGeo=api;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script>
+<script>
+(function(){
+if(typeof THREE==='undefined'){document.getElementById('stage').insertAdjacentHTML('beforeend','<p style="padding:20px">3D кітапханасы жүктелмеді. Интернет байланысын тексер.</p>');return}
+const G=TryOnGeo,$=id=>document.getElementById(id);
+const PAL=['#f4f1ea','#1f2430','#2f5d8a','#c0392b','#2e8b6a','#e0a526','#7a4fa3','#d98aa8','#8c8c8c','#7b5a3c'];
+const FIN=['#ece8e1','#cfd3d9','#e9c9aa','#c98e6a','#8d5a3b'];
+const DEF=()=>({H:175,W:70,sex:'n',manual:false,M:{chest:99,waist:84,hip:100},top:{type:'sweater',size:'M',col:'#2f5d8a',pat:'solid',print:null},bot:{type:'pants',size:'M',col:'#2a2f3a',pat:'solid'},shoes:{on:true,col:'#f4f1ea'},fin:FIN[0],fit:false});
+let S=DEF(),userImg=null;
+// ---------- three setup
+const stage=$('stage'),R=new THREE.WebGLRenderer({antialias:true,alpha:true});
+R.setPixelRatio(Math.min(window.devicePixelRatio||1,2));R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.1;stage.insertBefore(R.domElement,stage.firstChild);
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(30,1,.1,50),tt=new THREE.Group();scene.add(tt);
+scene.add(new THREE.HemisphereLight(0xffffff,0x9aa3b2,.75));
+const key=new THREE.DirectionalLight(0xffffff,.95);key.position.set(2.5,4,3);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-2.2,right:2.2,top:2.4,bottom:-2.2,near:.5,far:12});key.shadow.bias=-.0004;key.shadow.normalBias=.02;scene.add(key);
+const fill=new THREE.DirectionalLight(0xdfe8ff,.35);fill.position.set(-3,1.5,2);scene.add(fill);
+const rim=new THREE.DirectionalLight(0xffffff,.4);rim.position.set(0,2.5,-3);scene.add(rim);
+const pod=new THREE.Mesh(new THREE.CylinderGeometry(.55,.58,.06,64),new THREE.MeshStandardMaterial({color:0xdfe3e8,roughness:.9}));pod.position.y=-.03;pod.receiveShadow=true;scene.add(pod);
+const lc=h=>new THREE.Color(h).convertSRGBToLinear();
+function shade(hex,f){const c=new THREE.Color(hex);return '#'+new THREE.Color(c.r*f,c.g*f,c.b*f).getHexString()}
+const lum=hex=>{const c=new THREE.Color(hex);return .3*c.r+.59*c.g+.11*c.b};
+// ---------- textures
+function mkTex(base,pat,print,rep){
+ const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d');g.fillStyle=base;g.fillRect(0,0,512,512);
+ const dark=lum(base)>.5,ov=dark?'rgba(0,0,0,.28)':'rgba(255,255,255,.5)',ink=dark?'#1c2530':'#ffffff';g.fillStyle=ov;
+ if(pat==='stripe'){for(let i=0;i<19;i+=2)g.fillRect(0,i*27,512,27)}
+ else if(pat==='check'){for(let i=0;i<32;i++)for(let j=0;j<19;j++)if((i+j)%2)g.fillRect(i*16,j*27,16,27)}
+ else if(pat==='dot'){for(let i=0;i<16;i++)for(let j=0;j<10;j++){g.beginPath();g.ellipse(i*32+16,j*54+27,6,10,0,0,7);g.fill()}}
+ if(print){g.save();g.translate(256,200);g.scale(.6,1);g.fillStyle=ink;
+  if(print==='logo'){g.font='bold 78px "PT Sans",Arial';g.textAlign='center';g.textBaseline='middle';g.fillText('TryOn',0,0);g.fillRect(-120,52,240,6)}
+  else if(print==='star'){g.beginPath();for(let i=0;i<10;i++){const r=i%2?32:78,a=-Math.PI/2+i*Math.PI/5;g.lineTo(Math.cos(a)*r,Math.sin(a)*r)}g.closePath();g.fill()}
+  else if(print==='user'&&userImg){const k=Math.min(190/userImg.width,190/userImg.height);g.drawImage(userImg,-userImg.width*k/2,-userImg.height*k/2,userImg.width*k,userImg.height*k)}
+  g.restore()}
+ const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;t.wrapS=t.wrapT=THREE.RepeatWrapping;if(rep)t.repeat.set(rep[0],rep[1]);return t}
+function toGeo(l){
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(l.pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(l.uv,2));g.setIndex(l.idx);g.computeVertexNormals();
+ const n=g.attributes.normal,W=l.SEG+1;
+ for(let i=0;i<l.N;i++){const a=i*W,b=a+l.SEG;let x=n.getX(a)+n.getX(b),y=n.getY(a)+n.getY(b),z=n.getZ(a)+n.getZ(b);const m=Math.hypot(x,y,z)||1;x/=m;y/=m;z/=m;n.setXYZ(a,x,y,z);n.setXYZ(b,x,y,z)}
+ const col=[];l.d.forEach(d=>{const c=G.colorFor(d);col.push(Math.pow(c[0],2.2),Math.pow(c[1],2.2),Math.pow(c[2],2.2))});
+ g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));return g}
+function clear(grp){while(grp.children.length){const o=grp.children.pop();o.geometry&&o.geometry.dispose();if(o.material){o.material.map&&o.material.map.dispose();o.material.dispose()}}}
+// ---------- build
+function rebuild(){
+ clear(tt);
+ const r=G.build({H:S.H,W:S.W,sex:S.sex,manual:S.manual?S.M:null,top:S.top.type?{type:S.top.type,size:S.top.size}:null,bot:S.bot.type?{type:S.bot.type,size:S.bot.size}:null,shoes:S.shoes.on});
+ if(!S.manual){S.M={chest:r.est.chest,waist:r.est.waist,hip:r.est.hip};$('c').value=Math.round(r.est.chest);$('wa').value=Math.round(r.est.waist);$('hi').value=Math.round(r.est.hip)}
+ $('est').textContent=S.manual?'Өлшемдер қолмен енгізілген.':'Шамамен: кеуде '+Math.round(r.est.chest)+', бел '+Math.round(r.est.waist)+', жамбас '+Math.round(r.est.hip)+' см.';
+ const fit=S.fit,T=S.top,B=S.bot,M=(o)=>new THREE.MeshStandardMaterial(Object.assign({roughness:.85,side:THREE.DoubleSide},o));
+ const gm=(base,pat,print,rep)=>fit?M({vertexColors:true}):M({map:mkTex(base,pat,print,rep)});
+ const mats={body:M({color:lc(S.fin),roughness:.55}),top:gm(T.col,T.pat,T.print),sleeve:gm(T.col,T.pat,null,[.375,.5]),bot:gm(B.col,B.pat,null,[.5,.6]),shoe:M({color:lc(S.shoes.col),roughness:.6}),sole:M({color:lc('#f2f2f2'),roughness:.9})};
+ r.meshes.forEach(m=>{
+  let mat=mats[m.k];
+  if(m.k==='rib'){const c=fit?G.colorFor(m.d).map(v=>Math.pow(v*.82,2.2)):null;mat=M(fit?{color:new THREE.Color(c[0],c[1],c[2])}:{color:lc(shade(T.col,.78))})}
+  const mesh=new THREE.Mesh(toGeo(m.loft),mat);mesh.castShadow=true;mesh.receiveShadow=true;tt.add(mesh)});
+ // readout
+ $('rows').innerHTML=r.zones.map(z=>{const c=G.colorFor(z.d).map(v=>Math.round(v*255)),t=z.d<2?'тар':z.d>10?'бос':'дәл отырады';
+  return '<div class="row"><i class="dot" style="background:rgb('+c+')"></i><b>'+z.n+':</b> '+t+' <span>(дене '+Math.round(z.b)+', киім '+Math.round(z.g)+', '+(z.d>0?'+':'')+Math.round(z.d)+' см)</span></div>'}).join('')||'<div class="row"><span>Киім таңдаңыз</span></div>';
+ const rec=[];if(S.top.type)rec.push('топ '+(r.recTop||'—'));if(S.bot.type)rec.push('төменгі киім '+(r.recBot||'—'));
+ $('rec').textContent=rec.length?'Ұсынылатын өлшем: '+rec.join(', '):'';
+ $('legend').style.display=fit?'block':'none';
+ fitCam();
+}
+// ---------- camera / interaction
+let yaw=.5,goal=null,pitch=.06,zoom=1,auto=!matchMedia('(prefers-reduced-motion: reduce)').matches,drag=false,lx=0,ly=0;
+function fitCam(){const H=S.H/100,d=H*2.3/zoom,ty=H*.52;cam.position.set(0,ty+d*Math.sin(pitch),d*Math.cos(pitch));cam.lookAt(0,ty,0)}
+const cv=R.domElement;
+cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;goal=null;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'});
+cv.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-lx)*.011;pitch=Math.max(-.25,Math.min(.5,pitch+(e.clientY-ly)*.004));lx=e.clientX;ly=e.clientY;fitCam()});
+['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{drag=false;cv.style.cursor='grab'}));
+cv.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.8,Math.min(2.6,zoom*Math.exp(-e.deltaY*.001)));fitCam()},{passive:false});
+const setAuto=v=>{auto=v;$('spin').setAttribute('aria-pressed',v)};setAuto(auto);
+$('spin').onclick=()=>setAuto(!auto);
+$('zin').onclick=()=>{zoom=Math.min(2.6,zoom*1.2);fitCam()};$('zout').onclick=()=>{zoom=Math.max(.8,zoom/1.2);fitCam()};
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{setAuto(false);const t=+b.dataset.v;let d=((t-yaw)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI;goal=yaw+d});
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;R.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();fitCam()}
+new ResizeObserver(resize).observe(stage);
+(function loop(){if(goal!==null){yaw+=(goal-yaw)*.12;if(Math.abs(goal-yaw)<.002){yaw=goal;goal=null}}else if(auto&&!drag)yaw+=.006;tt.rotation.y=yaw;R.render(scene,cam);requestAnimationFrame(loop)})();
+// ---------- UI
+function chips(id,opts,cur,set){const c=$(id);c.innerHTML='';opts.forEach(([v,l])=>{const b=document.createElement('button');b.textContent=l;b.setAttribute('aria-pressed',v===cur);b.onclick=()=>{set(v);ui();rebuild()};c.appendChild(b)})}
+function sw(id,list,cur,set){const c=$(id);c.innerHTML='';list.forEach(x=>{const b=document.createElement('button');b.className='sw';b.style.background=x;b.setAttribute('aria-label','Түс '+x);b.setAttribute('aria-pressed',x===cur);b.onclick=()=>{set(x);ui();rebuild()};c.appendChild(b)})}
+const SZ=['S','M','L','XL'].map(s=>[s,s]),PT=[['solid','Тегіс'],['stripe','Жолақ'],['check','Тор'],['dot','Нүкте']];
+function ui(){
+ chips('sex',[['n','Бейтарап'],['f','Әйел'],['m','Ер']],S.sex,v=>S.sex=v);sw('fin',FIN,S.fin,v=>S.fin=v);
+ chips('tT',[[null,'Топсыз'],['tee','Футболка'],['sweater','Свитер']],S.top.type,v=>S.top.type=v);chips('tS',SZ,S.top.size,v=>S.top.size=v);sw('tC',PAL,S.top.col,v=>S.top.col=v);chips('tP',PT,S.top.pat,v=>S.top.pat=v);
+ chips('tR',[[null,'Принтсіз'],['logo','TryOn'],['star','Жұлдыз'],['user',userImg?'Менің суретім':'Сурет жүктеу…']],S.top.print,v=>{if(v==='user'&&!userImg){$('upl').click();return}S.top.print=v});
+ chips('bT',[[null,'Төменсіз'],['shorts','Шорты'],['pants','Шалбар']],S.bot.type,v=>S.bot.type=v);chips('bS',SZ,S.bot.size,v=>S.bot.size=v);sw('bC',PAL,S.bot.col,v=>S.bot.col=v);chips('bP',PT,S.bot.pat,v=>S.bot.pat=v);
+ chips('sT',[[false,'Жоқ'],[true,'Кроссовка']],S.shoes.on,v=>S.shoes.on=v);sw('sC',PAL,S.shoes.col,v=>S.shoes.col=v);
+ $('fit').setAttribute('aria-pressed',S.fit);$('man').checked=S.manual;
+ ['c','wa','hi'].forEach(i=>$(i).disabled=!S.manual);
+}
+$('upl').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{userImg=im;S.top.print='user';ui();rebuild()};im.src=URL.createObjectURL(f)};
+$('fit').onclick=()=>{S.fit=!S.fit;ui();rebuild()};
+$('man').onchange=()=>{S.manual=$('man').checked;ui();rebuild()};
+const num=(id,mn,mx)=>Math.min(mx,Math.max(mn,+$(id).value||mn));let raf=0;const later=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(rebuild)};
+$('h').oninput=()=>{S.H=num('h',150,200);later()};$('w').oninput=()=>{S.W=num('w',40,140);later()};
+$('c').oninput=()=>{S.M.chest=num('c',70,150);later()};$('wa').oninput=()=>{S.M.waist=num('wa',55,140);later()};$('hi').oninput=()=>{S.M.hip=num('hi',75,150);later()};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+$('rnd').onclick=()=>{S.top.type=pick(['tee','sweater']);S.top.col=pick(PAL);S.top.pat=pick(['solid','solid','stripe','check','dot']);S.top.print=S.top.pat==='solid'?pick([null,'logo','star']):null;
+ S.bot.type=pick(['shorts','pants']);S.bot.col=pick(PAL);S.bot.pat=pick(['solid','solid','stripe']);S.shoes.on=true;S.shoes.col=pick(PAL);ui();rebuild()};
+$('rst').onclick=()=>{const keepSex=S.sex;S=DEF();S.sex=keepSex;$('h').value=175;$('w').value=70;ui();rebuild()};
+ui();rebuild();resize();
+})();
+</script></body></html>
